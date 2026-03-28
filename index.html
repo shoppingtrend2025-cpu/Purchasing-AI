@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pharmacy AI — Procurement Assistant</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0d0f14;--surface:#141720;--surface2:#1c2030;
+    --border:rgba(255,255,255,0.07);--accent:#4ade80;
+    --accent2:#22d3ee;--adim:rgba(74,222,128,0.12);
+    --red:#f87171;--amber:#fbbf24;--text:#e2e8f0;--muted:#64748b;
+    --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans Arabic',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+  /* Modal */
+  #modal{position:fixed;inset:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:999}
+  .modal-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px;width:400px;max-width:90vw}
+  .modal-box h2{font-size:17px;color:var(--accent);margin-bottom:8px}
+  .modal-box p{font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.7}
+  .modal-box input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-family:var(--mono);font-size:13px;outline:none;margin-bottom:12px}
+  .modal-box input:focus{border-color:var(--accent)}
+  .modal-box button{width:100%;background:var(--accent);border:none;border-radius:8px;padding:12px;color:#0d0f14;font-weight:600;font-size:14px;cursor:pointer;font-family:var(--sans)}
+  .modal-box button:hover{background:#86efac}
+  .modal-note{font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:10px;text-align:center}
+  .err{color:var(--red);font-size:12px;margin-bottom:8px;display:none}
+
+  /* Header */
+  header{padding:12px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface);flex-shrink:0}
+  .logo{display:flex;align-items:center;gap:10px}
+  .li{width:32px;height:32px;background:var(--adim);border:1px solid var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:13px;color:var(--accent);font-weight:500}
+  .lt{font-size:15px;font-weight:600}
+  .ls{font-size:11px;color:var(--muted);font-family:var(--mono)}
+  .hstatus{display:flex;gap:14px;font-family:var(--mono);font-size:11px;color:var(--muted);align-items:center}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block;margin-right:4px;animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  #key-btn{cursor:pointer;color:var(--muted);border:none;background:none;font-family:var(--mono);font-size:11px;padding:0}
+  #key-btn:hover{color:var(--accent)}
+
+  /* Stats */
+  .sbar{padding:8px 20px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;gap:20px;flex-shrink:0;overflow-x:auto}
+  .st{font-family:var(--mono);font-size:11px;white-space:nowrap}
+  .sl{color:var(--muted)}.sv{color:var(--text);font-weight:500}
+  .sv.r{color:var(--red)}.sv.g{color:var(--accent)}.sv.a{color:var(--amber)}
+
+  /* Chips */
+  .chips{padding:9px 20px;border-bottom:1px solid var(--border);display:flex;gap:7px;flex-wrap:wrap;flex-shrink:0}
+  .chip{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:4px 11px;font-size:12px;color:var(--text);cursor:pointer;transition:all .15s}
+  .chip:hover{border-color:var(--accent);color:var(--accent);background:var(--adim)}
+
+  /* Chat */
+  #chat{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:14px}
+  #chat::-webkit-scrollbar{width:3px}
+  #chat::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+  .msg{display:flex;gap:10px;animation:up .2s ease}
+  @keyframes up{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+  .msg.user{flex-direction:row-reverse;align-self:flex-end;max-width:78%}
+  .msg.ai{align-self:flex-start;max-width:92%}
+  .av{width:30px;height:30px;border-radius:7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-family:var(--mono);font-weight:500}
+  .av.ai{background:var(--adim);border:1px solid var(--accent);color:var(--accent)}
+  .av.user{background:rgba(34,211,238,.1);border:1px solid rgba(34,211,238,.3);color:var(--accent2)}
+  .bubble{padding:10px 14px;border-radius:10px;font-size:13.5px;line-height:1.75}
+  .msg.user .bubble{background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.2)}
+  .msg.ai .bubble{background:var(--surface);border:1px solid var(--border)}
+  .bubble strong{color:var(--accent);font-weight:600}
+  .bubble em{color:var(--amber);font-style:normal;font-weight:500}
+  .bubble code{background:var(--surface2);padding:1px 5px;border-radius:3px;font-family:var(--mono);font-size:12px;color:var(--accent2)}
+  .r{color:var(--red)}.am{color:var(--amber)}.gr{color:var(--accent)}
+
+  /* Typing */
+  .typing{display:flex;align-items:center;gap:4px;padding:12px 14px}
+  .typing span{width:5px;height:5px;border-radius:50%;background:var(--accent);animation:b 1.2s ease-in-out infinite}
+  .typing span:nth-child(2){animation-delay:.2s}.typing span:nth-child(3){animation-delay:.4s}
+  @keyframes b{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
+
+  /* Input */
+  footer{padding:12px 20px;border-top:1px solid var(--border);background:var(--surface);flex-shrink:0}
+  .iw{display:flex;gap:8px;align-items:flex-end;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:8px 12px;transition:border-color .2s}
+  .iw:focus-within{border-color:rgba(74,222,128,.4)}
+  #inp{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-family:var(--sans);font-size:13.5px;resize:none;max-height:100px;min-height:22px;line-height:1.5}
+  #inp::placeholder{color:var(--muted)}
+  #sbtn{background:var(--accent);border:none;border-radius:7px;width:34px;height:34px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+  #sbtn:hover{background:#86efac;transform:scale(1.05)}
+  #sbtn:disabled{background:var(--surface2);cursor:not-allowed;transform:none}
+  .hint{font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:6px;padding:0 2px}
+</style>
+</head>
+<body>
+
+<!-- API Key Modal -->
+<div id="modal">
+  <div class="modal-box">
+    <h2>🔑 Enter your Anthropic API Key</h2>
+    <p>Your key powers the AI assistant. It is saved in your browser only — never sent to any server except Anthropic directly.</p>
+    <div id="err" class="err">Invalid key. Must start with sk-ant-</div>
+    <input type="password" id="key-inp" placeholder="sk-ant-api03-..." />
+    <button onclick="saveKey()">Start Pharmacy AI</button>
+    <p class="modal-note">Get your key at console.anthropic.com → API Keys</p>
+  </div>
+</div>
+
+<header>
+  <div class="logo">
+    <div class="li">Rx</div>
+    <div><div class="lt">Pharmacy AI</div><div class="ls">Procurement Assistant</div></div>
+  </div>
+  <div class="hstatus">
+    <span><span class="dot"></span>Live</span>
+    <span>6 branches · 11 months</span>
+    <button id="key-btn" onclick="changeKey()">⚙ Change key</button>
+  </div>
+</header>
+
+<div class="sbar">
+  <div class="st"><span class="sl">Peak: </span><span class="sv g">Oct 2025 — 41,800 units</span></div>
+  <div class="st"><span class="sl">🔴 Critical: </span><span class="sv r">3,157 items</span></div>
+  <div class="st"><span class="sl">Top branch: </span><span class="sv">Al-kharish</span></div>
+  <div class="st"><span class="sl">Apr order: </span><span class="sv a">SAR 102,486</span></div>
+  <div class="st"><span class="sl">Medicines: </span><span class="sv">72% of sales</span></div>
+</div>
+
+<div class="chips">
+  <span class="chip" onclick="ask('What should I order urgently this week?')">Urgent orders?</span>
+  <span class="chip" onclick="ask('Which branch is most critical right now?')">Most critical branch?</span>
+  <span class="chip" onclick="ask('Top 5 medicines running out fastest across all branches')">Medicines running out?</span>
+  <span class="chip" onclick="ask('Give me April 2026 purchase summary by branch')">April summary</span>
+  <span class="chip" onclick="ask('What seasonal items should I prepare for Ramadan and summer?')">Seasonal prep</span>
+  <span class="chip" onclick="ask('Draft a WhatsApp order message to a supplier for Hyposec 20mg in Arabic and English')">Draft WhatsApp order</span>
+</div>
+
+<div id="chat">
+  <div class="msg ai">
+    <div class="av ai">Rx</div>
+    <div class="bubble">
+      <strong>Pharmacy AI is ready.</strong> I have full visibility into your 6 branches across 11 months of sales data (May 2025 → March 2026).<br><br>
+      Ask me anything about stock, orders, suppliers, or demand predictions — in <em>English</em> or <em>Arabic</em>.
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="iw">
+    <textarea id="inp" rows="1" placeholder="Ask about stock, orders, suppliers, predictions..."></textarea>
+    <button id="sbtn" onclick="send()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0d0f14" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+      </svg>
+    </button>
+  </div>
+  <div class="hint">↵ send · shift+↵ new line · Arabic / English</div>
+</footer>
+
+<script>
+const SYS = `You are a smart AI Procurement Assistant for a pharmacy chain in Saudi Arabia. Reply in the SAME language the user writes in (Arabic or English). Be direct and practical — the owner is busy.
+
+PHARMACY DATA:
+- 6 sales branches + 1 main warehouse (central purchasing only, no sales)
+- 11 months: May 2025 → March 2026 (March is partial)
+- Sabya branch: new, opened ~2 months ago, growing fast
+
+BRANCH AVG MONTHLY SALES (units):
+Al-kharish: 11,756 | Maajer: 8,513 | Al-Sawarmeh: 5,075 | Dihma: 5,061 | Makramya: 4,843 | Sabya: 2,117
+
+MONTHLY TREND:
+May25:19,989 | Jun:23,127 | Jul:24,979 | Aug:26,365 | Sep:29,953 | Oct:38,085(PEAK +86%) | Nov:35,102 | Dec:37,794 | Jan26:39,204 | Feb:36,501 | Mar:32,869
+
+CATEGORIES (monthly units):
+Medicines:21,650(72%) | Cosmetics:5,163 | Milk:1,615 | Medical Aid:1,315 | Diapers:1,168 | Gums:281
+
+APRIL 2026 STOCK STATUS:
+🔴 Critical (<30 days): 3,157 | 🟡 Order soon (30-60 days): 1,473 | ✅ OK: 6,082
+Total procurement needed: SAR 102,486
+
+TOP 10 URGENT ORDERS NOW:
+1. Hyposec 20mg — Al-kharish: 188 units (stock:-21 NEGATIVE)
+2. Hyposec 20mg — Dihma: 116 units (stock:-4)
+3. Romin 15mg Syrup — Al-Sawarmeh: 79 units (5 days left)
+4. Lodiab 750 XR — Dihma: 58 units (4 days left)
+5. Hyposec 20mg — Al-Sawarmeh: 56 units (9 days left)
+6. Lodiab 750 XR — Maajer: 54 units (3 days left)
+7. Hyposec 20mg — Maajer: 53 units (11 days left)
+8. Glomox 500mg — Dihma: 49 units (7 days left)
+9. Lodiab 750 XR — Al-kharish: 48 units (0 days!)
+10. Marvelon Tab-21 — Maajer: 45 units (4 days left)
+
+LOST SALES (directional, not exact — recorded manually):
+Al-Sawarmeh:3,746 | Al-kharish:3,198 | Maajer:2,770 | Dihma:888
+
+SEASONAL:
+- Oct–Jan = peak (+86% vs May). Ramadan: stock antibiotics, vitamins 6 weeks early. Summer: sunscreen, baby care. Winter: cold/flu meds.
+
+SUPPLIERS: WhatsApp only. Not yet in system. Owner approves every order before sending.
+When drafting WhatsApp messages: write in BOTH Arabic and English. Keep professional and concise.`;
+
+let history = [], busy = false;
+const KEY = 'rx_pharmacy_key';
+
+function init() {
+  const k = localStorage.getItem(KEY);
+  if (k) document.getElementById('modal').style.display = 'none';
+}
+
+function saveKey() {
+  const v = document.getElementById('key-inp').value.trim();
+  const err = document.getElementById('err');
+  if (!v.startsWith('sk-')) { err.style.display = 'block'; return; }
+  err.style.display = 'none';
+  localStorage.setItem(KEY, v);
+  document.getElementById('modal').style.display = 'none';
+}
+
+function changeKey() {
+  localStorage.removeItem(KEY);
+  document.getElementById('key-inp').value = '';
+  document.getElementById('modal').style.display = 'flex';
+}
+
+function fmt(t) {
+  return t
+    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g,'<em>$1</em>')
+    .replace(/`(.*?)`/g,'<code>$1</code>')
+    .replace(/🔴(.*?)(\n|<br>|$)/g,'<span class="r">🔴$1</span>$2')
+    .replace(/🟡(.*?)(\n|<br>|$)/g,'<span class="am">🟡$1</span>$2')
+    .replace(/✅(.*?)(\n|<br>|$)/g,'<span class="gr">✅$1</span>$2')
+    .replace(/\n/g,'<br>');
+}
+
+function addMsg(role, html) {
+  const c = document.getElementById('chat');
+  const d = document.createElement('div');
+  d.className = `msg ${role}`;
+  const av = document.createElement('div');
+  av.className = `av ${role}`;
+  av.textContent = role === 'ai' ? 'Rx' : 'You';
+  const b = document.createElement('div');
+  b.className = 'bubble';
+  b.innerHTML = fmt(html);
+  d.appendChild(av); d.appendChild(b);
+  c.appendChild(d);
+  c.scrollTop = c.scrollHeight;
+}
+
+function showTyping() {
+  const c = document.getElementById('chat');
+  const d = document.createElement('div');
+  d.className = 'msg ai'; d.id = 'typ';
+  const av = document.createElement('div');
+  av.className = 'av ai'; av.textContent = 'Rx';
+  const b = document.createElement('div');
+  b.className = 'bubble typing';
+  b.innerHTML = '<span></span><span></span><span></span>';
+  d.appendChild(av); d.appendChild(b);
+  c.appendChild(d);
+  c.scrollTop = c.scrollHeight;
+}
+
+function ask(t) { document.getElementById('inp').value = t; send(); }
+
+async function send() {
+  if (busy) return;
+  const key = localStorage.getItem(KEY);
+  if (!key) { changeKey(); return; }
+  const inp = document.getElementById('inp');
+  const text = inp.value.trim();
+  if (!text) return;
+  inp.value = ''; inp.style.height = 'auto';
+  busy = true;
+  document.getElementById('sbtn').disabled = true;
+  addMsg('user', text);
+  history.push({ role: 'user', content: text });
+  showTyping();
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1024,
+        system: SYS,
+        messages: history
+      })
+    });
+    const data = await res.json();
+    document.getElementById('typ')?.remove();
+    if (data.error) {
+      addMsg('ai', `🔴 **API Error:** ${data.error.message}\n\nCheck your API key or try again.`);
+    } else {
+      const reply = data.content[0].text;
+      history.push({ role: 'assistant', content: reply });
+      addMsg('ai', reply);
+    }
+  } catch(e) {
+    document.getElementById('typ')?.remove();
+    addMsg('ai', '🔴 **Connection error.** Make sure your API key is valid and try again.');
+  }
+  busy = false;
+  document.getElementById('sbtn').disabled = false;
+}
+
+document.getElementById('inp').addEventListener('input', function() {
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+});
+document.getElementById('inp').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+});
+document.getElementById('key-inp').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') saveKey();
+});
+
+init();
+</script>
+</body>
+</html>
